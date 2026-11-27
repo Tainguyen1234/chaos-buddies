@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>CHAOS BUDDIES v0.7 — PARTY RUMBLE</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ddde8;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}#game{position:fixed;inset:0}canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none;color:#fff;text-shadow:0 2px 5px #16203b}.top{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:8px}.pill{background:#172846df;border:1px solid #ffffff55;border-radius:13px;padding:7px 10px;font-size:12px;font-weight:900}.big{font-size:19px;color:#ffe17b}#phase{position:absolute;top:61px;left:12px;right:12px;background:#172846d9;border-radius:12px;padding:7px 10px;font-size:11px;font-weight:850}#bar{height:5px;background:#ffffff55;border-radius:9px;margin-top:5px;overflow:hidden}#fill{height:100%;width:100%;background:#ffe17b}#controls{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:0 12px}.pad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px);gap:5px;pointer-events:auto}.ctrl{border:2px solid #ffffff88;border-radius:16px;background:#172846e8;color:#fff;font-size:21px;font-weight:1000;touch-action:none;box-shadow:0 4px #0b1730}.ctrl:active{transform:translateY(2px)}#up{grid-column:2;grid-row:1}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}.actions{display:flex;flex-direction:column;gap:9px;pointer-events:auto}.act{width:70px;height:58px;border:2px solid #fff9;border-radius:18px;font-weight:1000;font-size:13px;color:#3a2a42;background:linear-gradient(135deg,#ffe17b,#ff9d58);box-shadow:0 4px #aa644a}.act.blue{background:linear-gradient(135deg,#a8edff,#59b8f1)}#toast{position:absolute;top:25%;left:50%;transform:translateX(-50%);font-size:25px;font-weight:1000;color:#fff078;white-space:nowrap;opacity:0;transition:opacity .12s}#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;background:#10203b77;color:white}.panel{width:min(420px,100%);border:1px solid #ffffff66;border-radius:25px;padding:22px 18px;background:linear-gradient(145deg,#285278f5,#182642f7);box-shadow:0 18px 60px #0006}.panel h1{font-size:34px;line-height:.95;margin:4px 0 10px}.panel p{font-weight:750;line-height:1.4}.main{border:0;border-radius:14px;background:linear-gradient(135deg,#ffe276,#ff9e50);padding:13px 24px;color:#402b43;font-weight:1000;font-size:16px;box-shadow:0 4px #b76c43}.hint{font-size:12px;color:#dceaff}.hidden{display:none!important}
+</style></head><body><div id="game"></div><div id="hud"><div class="top"><div class="pill">👑 PARTY RUMBLE <span style="color:#62ead5">v0.7</span><div class="big" id="alive">8 CÒN LẠI</div></div><div class="pill">🏆 <span id="rank">—</span>　⏱ <span id="clock">75</span>s</div></div><div id="phase">ĐẤU TRƯỜNG SẼ THU NHỎ DẦN!<div id="bar"><div id="fill"></div></div></div><div id="toast"></div><div id="controls"><div class="pad"><button class="ctrl" id="up">▲</button><button class="ctrl" id="left">◀</button><button class="ctrl" id="down">▼</button><button class="ctrl" id="right">▶</button></div><div class="actions"><button class="act" id="dash">⚡ HÚC</button><button class="act blue" id="shield">🛡 KHIÊN</button></div></div></div>
+<div id="overlay"><div class="panel"><div style="font-size:58px">🎉</div><h1>CHAOS BUDDIES<br>PARTY RUMBLE</h1><p>ĐẤU TRƯỜNG HỖN LOẠN 3D!</p><p>Húc 7 đối thủ AI khỏi sàn, né bẫy và sống sót đến cuối cùng để giành vương miện.</p><p class="hint">Di chuyển: ▲ ▼ ◀ ▶　|　⚡ Húc　|　🛡 Khiên</p><button class="main" id="start">VÀO ĐẤU TRƯỜNG ▶</button><p class="hint" id="load">Đang dựng đấu trường 3D…</p></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const $=s=>document.querySelector(s),host=$('#game');
+let scene,camera,renderer,clock,player,bots=[],items=[],tiles=[],hazards=[],keys={},state='menu',elapsed=0,remaining=75,arenaR=8.5,dashT=0,shieldT=0,toastT=0,playerDir=new THREE.Vector3(0,0,-1),playerVel=new THREE.Vector3(),sweepAngle=0,lastSweep=0,playerRank=8;
+const colors=['#38cdbb','#ff994e','#9a78ee','#ff6e91','#69a9f6','#f3c84d','#7bd58b','#e58ad6'];
+const mat=(c,r=.55)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const M={white:mat('#fff',.2),ink:mat('#25314a',.25),shine:mat('#fff',.15),pink:mat('#ff91a8'),gold:mat('#ffd34f'),floor:mat('#5b86bd'),tile1:mat('#6ca4d5'),tile2:mat('#76b9db'),edge:mat('#354b79'),red:mat('#f16c79'),beam:mat('#ffe276')};
+function mesh(g,m,p){let o=new THREE.Mesh(g,m);p.add(o);o.castShadow=true;o.receiveShadow=true;return o}
+function makeBuddy(color,isPlayer=false){
+ const root=new THREE.Group(),fur=mat(color,.75),belly=mat('#e8fff8',.75),shoe=mat(isPlayer?'#ff9b50':'#34415c');
+ const torso=mesh(new THREE.SphereGeometry(.62,28,24),fur,root);torso.scale.set(.9,1,.78);torso.position.y=.73;
+ const face=mesh(new THREE.SphereGeometry(.36,24,20),belly,root);face.scale.set(1,.78,.38);face.position.set(0,.72,.45);
+ // Eyes are explicitly on the forward (+Z) face, visible to the gameplay camera.
+ for(const s of [-1,1]){let eye=mesh(new THREE.SphereGeometry(.105,20,16),M.white,root);eye.position.set(s*.15,.84,.75);let pupil=mesh(new THREE.SphereGeometry(.058,16,12),M.ink,root);pupil.position.set(s*.15+.018,.84,.83);let glint=mesh(new THREE.SphereGeometry(.023,12,10),M.shine,root);glint.position.set(s*.15,.875,.875);let cheek=mesh(new THREE.SphereGeometry(.085,14,10),M.pink,root);cheek.scale.set(1,.55,.3);cheek.position.set(s*.29,.59,.72)}
+ let nose=mesh(new THREE.SphereGeometry(.055,14,10),M.ink,root);nose.position.set(0,.69,.82);
+ let mouth=mesh(new THREE.TorusGeometry(.065,.012,8,18,Math.PI),M.ink,root);mouth.position.set(0,.57,.82);mouth.rotation.z=Math.PI;
+ // soft rounded ears
+ for(const s of [-1,1]){let ear=mesh(new THREE.SphereGeometry(.19,16,12),fur,root);ear.scale.set(.7,1,.5);ear.position.set(s*.43,1.25,.02);let leg=mesh(new THREE.SphereGeometry(.16,14,10),shoe,root);leg.scale.set(1,.7,1.1);leg.position.set(s*.23,.13,.12)}
+ let scarf=mesh(new THREE.TorusGeometry(.43,.075,10,28),mat(isPlayer?'#ffe078':'#fff'),root);scarf.scale.set(1,.5,1);scarf.position.set(0,.39,.03);
+ root.userData={torso,fur,isPlayer,stun:0,shield:0,dash:0,alive:true,botDir:new THREE.Vector3(),color};
+ return root
+}
+function makeArena(){
+ const disc=mesh(new THREE.CylinderGeometry(9,9,.55,64),M.floor,scene);disc.position.y=-.32;
+ // segmented colored tiles on top make the arena read as a party platform
+ for(let i=0;i<24;i++){let a=i*Math.PI*2/24;let g=new THREE.BoxGeometry(2.12,.12,2.05);let t=mesh(g,i%2?M.tile1:M.tile2,scene);t.position.set(Math.cos(a)*5.9,-.015,Math.sin(a)*5.9);t.rotation.y=-a;tiles.push(t)}
+ const ring=mesh(new THREE.TorusGeometry(8.7,.22,12,80),M.gold,scene);ring.rotation.x=Math.PI/2;ring.position.y=.03;
+ // distant colorful floating decorations
+ for(let i=0;i<12;i++){let a=i*Math.PI/6;let orb=mesh(new THREE.SphereGeometry(.35,16,12),mat(colors[i%colors.length]),scene);orb.position.set(Math.cos(a)*11,1.2+Math.sin(i*2)*.5,Math.sin(a)*11)}
+ // rotating sweeper bar
+ let pivot=new THREE.Group();scene.add(pivot);pivot.position.y=.52;let bar=mesh(new THREE.BoxGeometry(13,.22,.35),M.red,pivot);bar.position.y=.15;let cap1=mesh(new THREE.SphereGeometry(.25,16,12),M.gold,pivot);cap1.position.x=6.5;let cap2=mesh(new THREE.SphereGeometry(.25,16,12),M.gold,pivot);cap2.position.x=-6.5;hazards.push(pivot)
+}
+function resetGame(){
+ bots.forEach(b=>scene.remove(b));bots=[];items.forEach(i=>scene.remove(i));items=[];elapsed=0;remaining=75;arenaR=8.5;dashT=shieldT=0;playerRank=8;player.position.set(0,0,5.1);player.rotation.set(0,0,0);playerVel.set(0,0,0);player.userData.alive=true;player.userData.stun=0;
+ for(let i=0;i<7;i++){let a=i*Math.PI*2/7;let b=makeBuddy(colors[i+1]);b.position.set(Math.cos(a)*5.1,0,Math.sin(a)*5.1);b.userData.botDir.set(-Math.cos(a),0,-Math.sin(a));scene.add(b);bots.push(b)}
+ updateHUD();state='play';$('#overlay').classList.add('hidden');pop('TRẬN ĐẤU BẮT ĐẦU!')
+}
+function updateHUD(){$('#alive').textContent=(1+bots.filter(b=>b.userData.alive).length)+' CÒN LẠI';$('#clock').textContent=Math.max(0,Math.ceil(remaining));$('#rank').textContent=playerRank===1?'#1':'#'+playerRank;$('#fill').style.width=(arenaR/8.5*100)+'%'}
+function pop(s){$('#toast').textContent=s;$('#toast').style.opacity=1;toastT=1.05}
+function spawnPickup(){let a=Math.random()*Math.PI*2,r=Math.random()*5.4;let g=new THREE.Group();g.position.set(Math.cos(a)*r,.65,Math.sin(a)*r);scene.add(g);let gem=mesh(new THREE.OctahedronGeometry(.32),M.gold,g);g.userData={type:'gem',life:12};items.push(g)}
+function dash(){if(state!=='play'||dashT>0)return;dashT=1.0;playerVel.add(playerDir.clone().multiplyScalar(11));pop('HÚC!!!')}
+function shield(){if(state!=='play'||shieldT>0)return;shieldT=3.2;player.userData.shield=3.2;pop('KHIÊN KÍCH HOẠT!')}
+function knock(target,dir,power){if(!target.userData.alive)return;if(target.userData.shield>0){target.userData.shield=0;target.userData.stun=.25;return}target.userData.botDir.copy(dir).multiplyScalar(power);target.userData.stun=.55;target.userData.torso.scale.set(1.18,.8,1.05)}
+function eliminate(b){if(!b.userData.alive)return;b.userData.alive=false;b.visible=false;playerRank--;updateHUD();pop(playerRank===1?'BẠN LÀ NGƯỜI CUỐI CÙNG!':'ĐỐI THỦ BAY MÀU!')}
+function botAI(b,dt){if(!b.userData.alive)return;let pos=b.position,dir=new THREE.Vector3(-pos.x,0,-pos.z);let d=dir.length();dir.normalize();let side=new THREE.Vector3(-dir.z,0,dir.x).multiplyScalar(Math.sin(elapsed*1.6+b.id)*.6);dir.add(side).normalize();if(d>arenaR-1.5)dir.multiplyScalar(1.35);else if(Math.random()<.012)dir.set(Math.random()-.5,0,Math.random()-.5).normalize();b.userData.botDir.lerp(dir.clone().multiplyScalar(2.5),dt*1.3);pos.addScaledVector(b.userData.botDir,dt);b.rotation.y=Math.atan2(b.userData.botDir.x,b.userData.botDir.z);b.position.y=Math.abs(Math.sin(elapsed*8+b.id))*0.035}
+function playerInput(dt){
+ let x=(keys.right?1:0)-(keys.left?1:0),z=(keys.down?1:0)-(keys.up?1:0);
+ if(x||z){let v=new THREE.Vector3(x,0,z).normalize();playerDir.lerp(v,Math.min(1,dt*12)).normalize();playerVel.addScaledVector(v,dt*19)}
+ playerVel.multiplyScalar(Math.pow(.12,dt));let max=dashT>0?10:5.7;if(playerVel.length()>max)playerVel.setLength(max);
+ player.position.addScaledVector(playerVel,dt);player.position.y=Math.abs(Math.sin(elapsed*10))*.035;player.rotation.y=Math.atan2(playerDir.x,playerDir.z);
+}
+function resolveBumps(){
+ let all=[player,...bots.filter(b=>b.userData.alive)];
+ for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){let a=all[i],b=all[j],delta=b.position.clone().sub(a.position);delta.y=0;let d=delta.length();if(d<1.05&&d>.001){let n=delta.normalize();let push=.5-d*.15;a.position.addScaledVector(n,-push);b.position.addScaledVector(n,push);if(a===player&&dashT>0)knock(b,n,9);else if(b===player&&dashT>0)knock(a,n.clone().negate(),9);else if(Math.random()<.025){a.position.addScaledVector(n,-.3);b.position.addScaledVector(n,.3)}}}
+}
+function checkFalling(){
+ const limit=arenaR-.25;
+ for(const b of [player,...bots.filter(x=>x.userData.alive)]){let r=Math.hypot(b.position.x,b.position.z);if(r>limit){if(b===player){state='over';showEnd(false)}else eliminate(b)}}
+}
+function showEnd(win){state='over';let title=win?'CÚP VÀNG THUỘC VỀ BẠN!':'BẠN ĐÃ BAY KHỎI SÀN!';let desc=win?'Bạn đã sống sót và trở thành nhà vô địch!':'Đừng bỏ cuộc — vào trận tiếp theo và húc đối thủ ra ngoài!';$('#overlay').innerHTML='<div class="panel"><div style="font-size:58px">'+(win?'👑':'💫')+'</div><h1>'+title+'</h1><p>'+desc+'</p><p class="hint">Thứ hạng: '+(win?'#1':'#'+playerRank)+'</p><button class="main" id="again">CHƠI LẠI ↻</button></div>';$('#overlay').classList.remove('hidden');$('#again').onclick=resetGame}
+function update(dt){
+ if(state!=='play')return;elapsed+=dt;remaining-=dt;arenaR=Math.max(4.6,8.5-Math.max(0,elapsed-15)*.055);hazards[0].rotation.y+=dt*(.75+elapsed*.012);playerInput(dt);
+ for(let b of bots)botAI(b,dt);
+ resolveBumps();
+ // Sweeper knocks characters back; jump timing is not yet required in this first arena prototype.
+ for(const b of [player,...bots.filter(x=>x.userData.alive)]){let dx=b.position.x*Math.cos(hazards[0].rotation.y)+b.position.z*Math.sin(hazards[0].rotation.y);let dz=-b.position.x*Math.sin(hazards[0].rotation.y)+b.position.z*Math.cos(hazards[0].rotation.y);if(Math.abs(dz)<.38&&Math.abs(dx)<6.4){if(b===player&&shieldT>0){}else{let away=new THREE.Vector3(b.position.x,0,b.position.z).normalize();b.position.addScaledVector(away,.22);if(b!==player&&Math.random()<.08)b.position.addScaledVector(away,.35)}}}
+ checkFalling();
+ if(elapsed>15&&Math.floor(elapsed)%8===0&&Math.floor(elapsed-dt)!==Math.floor(elapsed))pop('SÀN ĐANG THU NHỎ!');
+ if(Math.random()<dt*.18)spawnPickup();
+ for(let i=items.length-1;i>=0;i--){let it=items[i];it.rotation.y+=dt*2;it.position.y=.65+Math.sin(elapsed*4+i)*.12;it.userData.life-=dt;if(it.position.distanceTo(player.position)<.9){it.userData.life=0;pop('✨ NHẶT ĐƯỢC VẬT PHẨM!')}if(it.userData.life<=0){scene.remove(it);items.splice(i,1)}}
+ if(shieldT>0){shieldT-=dt;player.userData.shield=shieldT}
+ if(dashT>0)dashT-=dt;
+ if(remaining<=0){let alive=1+bots.filter(b=>b.userData.alive).length;if(alive===1)showEnd(true);else{remaining=75;arenaR=Math.max(4.4,arenaR-.8);pop('VÒNG CUỐI — TĂNG TỐC!')}}
+ if(bots.every(b=>!b.userData.alive))showEnd(true);
+ updateHUD();
+}
+function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.04);update(dt);if(renderer)renderer.render(scene,camera)}
+function bindHold(id,key){let el=$('#'+id);el.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,()=>keys[key]=false))}
+function init(){
+ scene=new THREE.Scene();scene.background=new THREE.Color('#8ddde8');scene.fog=new THREE.Fog('#8ddde8',25,55);
+ camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,100);camera.position.set(0,13.5,16.5);camera.lookAt(0,0,0);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight('#f4ffff','#526080',2.1));let sun=new THREE.DirectionalLight('#fff4dc',2.5);sun.position.set(-5,12,8);sun.castShadow=true;scene.add(sun);
+ makeArena();player=makeBuddy(colors[0],true);player.position.set(0,0,5.1);scene.add(player);clock=new THREE.Clock();
+ bindHold('up','up');bindHold('down','down');bindHold('left','left');bindHold('right','right');$('#dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});$('#shield').addEventListener('pointerdown',e=>{e.preventDefault();shield()});$('#start').onclick=resetGame;
+ window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+ window.addEventListener('keydown',e=>{if(['ArrowUp','w','W'].includes(e.key))keys.up=true;if(['ArrowDown','s','S'].includes(e.key))keys.down=true;if(['ArrowLeft','a','A'].includes(e.key))keys.left=true;if(['ArrowRight','d','D'].includes(e.key))keys.right=true;if(e.key===' ')dash();if(e.key==='Shift')shield()});
+ window.addEventListener('keyup',e=>{if(['ArrowUp','w','W'].includes(e.key))keys.up=false;if(['ArrowDown','s','S'].includes(e.key))keys.down=false;if(['ArrowLeft','a','A'].includes(e.key))keys.left=false;if(['ArrowRight','d','D'].includes(e.key))keys.right=false});
+ $('#load').textContent='Đấu trường đã sẵn sàng!';animate()
+}
+try{init()}catch(e){$('#load').textContent='Không tải được 3D: '+e.message;console.error(e)}
+</script></body></html>
