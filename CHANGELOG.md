@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4
+- Added running bounce and alternating foot movement for BUBU.
+- Added a fall pose when the player hits an obstacle.
+- Added three selectable character color styles: BUBU, PIPI and ZUZU.
+- Added an extra gate obstacle type.
+- Kept v0.3 unchanged as a separate preserved version.
+
 ## v0.3
 - Added first WebGL 3D playground built with Three.js.
 - Added a modeled 3D BUBU mascot, perspective track, scenery, lighting and shadows.
@@ -7,16 +14,8 @@
 - Added lane movement, jump, slide, coins, score, personal best and pause/retry UI.
 - Uses Three.js from a CDN; an Internet connection is required to load the 3D engine.
 
-
 ## v0.2
-- Added collectible gold coins.
-- Added hammer obstacle type.
-- Added combo feedback for successful obstacle avoidance.
-- Added pause/resume overlay.
-- Added personal-best score using browser localStorage.
-- Kept v0.1 source as a separate preserved version.
+- Added collectible gold coins, hammer obstacle, combo feedback, pause/resume and local personal best.
 
 ## v0.1
-- First playable browser prototype.
-- Three-lane movement, jump and slide controls.
-- Basic obstacle spawning, collision checks and distance score.
+- First playable browser prototype with lane movement, jump, slide, obstacles and distance score.
