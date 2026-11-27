@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>CHAOS BUDDIES v0.5</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#8bdcf0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}#game{position:fixed;inset:0}canvas{display:block}#hud{position:fixed;inset:0;color:white;pointer-events:none;text-shadow:0 2px 5px #17213b}.top{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;gap:8px}.pill{background:#172846df;border:1px solid #ffffff55;border-radius:14px;padding:8px 11px;font-size:13px;font-weight:850}#score{font-size:20px;color:#ffdc70}.pad{display:flex;gap:9px;pointer-events:auto}#controls{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:0;right:0;display:flex;justify-content:space-between;padding:0 18px}.ctrl{width:62px;height:62px;border:2px solid #ffffff88;border-radius:18px;background:#172846df;color:white;font-size:24px;font-weight:900;touch-action:none}.act{background:#ffbd50;color:#432d3d}#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px;background:#101a3277;color:white}.panel{width:min(410px,100%);border:1px solid #ffffff66;border-radius:24px;padding:22px 18px;background:linear-gradient(145deg,#203d68f5,#192440f5);box-shadow:0 18px 60px #0006}.panel h1{font-size:34px;line-height:.96;margin:0}.panel p{font-weight:700;line-height:1.4}.main,.choice{border:0;border-radius:14px;padding:12px 17px;color:#402b43;font-weight:1000;font-size:15px;margin:4px}.main{background:linear-gradient(135deg,#ffe276,#ff9e50);box-shadow:0 4px #b76c43}.choice{background:#eaf7ff;color:#233653}.choice.selected{outline:3px solid #4de2d0}#pause{position:absolute;right:14px;top:105px;pointer-events:auto;background:#172846df;color:white;border:1px solid #fff8;border-radius:12px;padding:8px 12px;font-weight:900}#toast{position:absolute;top:24%;left:50%;transform:translateX(-50%);font-size:22px;font-weight:1000;color:#ffe16d;opacity:0}
+</style></head><body><div id="game"></div><div id="hud"><div class="top"><div class="pill">🏁 CHAOS BUDDIES <span style="color:#4de2d0">v0.5</span><div id="score">0 m</div></div><div class="pill">🪙 <span id="coins">0</span>　🏆 <span id="best">0</span></div></div><button id="pause">Ⅱ</button><div id="toast"></div><div id="controls"><div class="pad"><button class="ctrl" id="left">◀</button><button class="ctrl" id="right">▶</button></div><div class="pad"><button class="ctrl act" id="slide">↓</button><button class="ctrl act" id="jump">↑</button></div></div></div>
+<div id="overlay"><div class="panel"><div style="font-size:44px">✨</div><h1>CHAOS BUDDIES<br>CHARACTER REBORN</h1><p>Chọn người bạn đồng hành của bạn</p><div><button class="choice selected" data-skin="0">🩵 BUBU</button><button class="choice" data-skin="1">🧡 PIPI</button><button class="choice" data-skin="2">💜 ZUZU</button></div><p style="font-size:12px">Nhân vật được thiết kế lại: mắt biểu cảm, ăng-ten phát sáng, huy hiệu ngôi sao và giày sneaker.</p><button class="main" id="start">CHƠI NGAY ▶</button><p id="load" style="font-size:12px">Đang dựng thế giới 3D…</p></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const $=s=>document.querySelector(s),host=$('#game');
+let scene,camera,renderer,clock,hero,body,legs=[],arms=[],items=[],lane=1,target=1,jumpY=0,vy=0,duck=0,dist=0,coins=0,best=0,spawnDist=0,state='menu',elapsed=0,toast=0,skin=0;
+try{best=+(localStorage.getItem('cb05best')||0)}catch(e){}$('#best').textContent=best;
+const palettes=[['#16cfc0','#ff9d3f','#b4fff3'],['#ff913d','#ffe16a','#fff0cf'],['#9464ee','#55d8f5','#eadcff']];
+const mat=(c,r=.4,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const shared={white:mat('#ffffff',.25),dark:mat('#14243d',.22),iris:mat('#159bd0',.2),black:mat('#07182d',.18),blush:mat('#ff8298',.45),gold:mat('#ffd34f',.25,.35),orange:mat('#ff963c',.32),purple:mat('#7952d6',.3),road:mat('#8999c6'),edge:mat('#6577ad'),pink:mat('#f16f92'),mint:mat('#a4f5dc')};
+function mesh(g,m,p){let o=new THREE.Mesh(g,m);p.add(o);o.castShadow=true;o.receiveShadow=true;return o}
+function starShape(){let s=new THREE.Shape();for(let i=0;i<10;i++){let a=Math.PI/2+i*Math.PI/5,r=i%2?.20:.43,x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)s.moveTo(x,y);else s.lineTo(x,y)}s.closePath();return new THREE.ExtrudeGeometry(s,{depth:.08,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:.035,bevelThickness:.035})}
+function buildHero(){
+ hero=new THREE.Group();scene.add(hero);
+ const palette=palettes[skin],gel=mat(palette[0],.22,.04),accent=mat(palette[1],.3,.05),bellyMat=mat(palette[2],.3);
+ body=mesh(new THREE.SphereGeometry(.67,40,32),gel,hero);body.scale.set(.9,1.05,.78);body.position.y=1.05;
+ let belly=mesh(new THREE.SphereGeometry(.39,32,24),bellyMat,hero);belly.scale.set(1,.9,.28);belly.position.set(0,.88,.49);
+ // glossy forehead crest
+ let crest=mesh(new THREE.SphereGeometry(.34,24,20),gel,hero);crest.scale.set(.78,1.35,.42);crest.position.set(.12,1.69,.27);crest.rotation.z=-.48;
+ // antennae with glowing tips
+ for(let s of [-1,1]){let stem=mesh(new THREE.CylinderGeometry(.065,.09,.48,16),gel,hero);stem.position.set(s*.39,1.78,0);stem.rotation.z=-s*.32;let orb=mesh(new THREE.SphereGeometry(.16,24,18),mat(palette[1],.2,.08),hero);orb.position.set(s*.48,2.05,0);let glow=new THREE.PointLight(palette[1],.6,2);glow.position.copy(orb.position);hero.add(glow)}
+ // eyes, irises, pupils and catchlights
+ for(let s of [-1,1]){let eye=mesh(new THREE.SphereGeometry(.235,32,24),shared.white,hero);eye.scale.set(.92,1.12,.42);eye.position.set(s*.245,1.26,.625);let iris=mesh(new THREE.SphereGeometry(.145,28,20),shared.iris,hero);iris.scale.set(.9,1.08,.45);iris.position.set(s*.245+.025,1.245,.735);let pupil=mesh(new THREE.SphereGeometry(.087,24,18),shared.black,hero);pupil.position.set(s*.245+.035,1.245,.795);let shine=mesh(new THREE.SphereGeometry(.04,16,12),shared.white,hero);shine.position.set(s*.245,1.30,.84);
+  let brow=mesh(new THREE.CapsuleGeometry(.035,.22,5,10),shared.dark,hero);brow.position.set(s*.25,1.55,.64);brow.rotation.z=s*.2;
+  let cheek=mesh(new THREE.SphereGeometry(.12,20,16),shared.blush,hero);cheek.scale.set(1,.55,.25);cheek.position.set(s*.47,.94,.59);
+ }
+ // smiling mouth
+ let mouth=mesh(new THREE.TorusGeometry(.115,.025,10,28,Math.PI),shared.dark,hero);mouth.position.set(0,.91,.76);mouth.rotation.z=Math.PI;
+ // arms and gloves
+ for(let s of [-1,1]){let arm=new THREE.Group();hero.add(arm);arm.position.set(s*.58,.85,.05);let limb=mesh(new THREE.CapsuleGeometry(.12,.28,6,12),gel,arm);limb.rotation.z=s*.8;let glove=mesh(new THREE.SphereGeometry(.16,20,16),accent,arm);glove.position.set(s*.17,-.12,.03);arms.push(arm)}
+ // belt and iconic star badge
+ let belt=mesh(new THREE.TorusGeometry(.49,.075,12,40),accent,hero);belt.scale.set(1,.52,1);belt.position.set(0,.49,.05);
+ let badge=mesh(starShape(),shared.gold,hero);badge.position.set(-.12,.55,.61);badge.scale.set(.55,.55,.55);
+ // legs with high-top sneakers
+ for(let s of [-1,1]){let leg=new THREE.Group();hero.add(leg);leg.position.set(s*.23,.38,0);let shin=mesh(new THREE.CapsuleGeometry(.105,.22,6,12),gel,leg);shin.position.y=-.08;let shoe=mesh(new THREE.BoxGeometry(.34,.22,.48),accent,leg);shoe.position.set(0,-.25,.13);shoe.rotation.x=-.08;let sole=mesh(new THREE.BoxGeometry(.35,.065,.49),shared.white,leg);sole.position.set(0,-.36,.14);legs.push(leg)}
+}
+function setSkin(n){skin=n;if(hero){scene.remove(hero);legs=[];arms=[];buildHero();hero.position.set((lane-1)*1.35,0,2)}document.querySelectorAll('.choice').forEach(b=>b.classList.toggle('selected',+b.dataset.skin===n))}
+function build(){
+ scene=new THREE.Scene();scene.background=new THREE.Color('#9be8f0');scene.fog=new THREE.Fog('#9be8f0',24,82);
+ camera=new THREE.PerspectiveCamera(57,innerWidth/innerHeight,.1,130);camera.position.set(0,5.1,8.4);camera.lookAt(0,1,-5);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight('#efffff','#536080',2.1));let sun=new THREE.DirectionalLight('#fff2d8',2.6);sun.position.set(-5,10,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+ let floor=mesh(new THREE.BoxGeometry(8,.25,110),shared.road,scene);floor.position.set(0,-.22,-42);
+ for(let x of [-1.35,1.35]){let line=mesh(new THREE.BoxGeometry(.035,.02,110),shared.white,scene);line.position.set(x,-.08,-42)}
+ for(let s of [-1,1]){let rail=mesh(new THREE.BoxGeometry(.18,.5,110),shared.edge,scene);rail.position.set(s*3.9,.05,-42);for(let i=0;i<14;i++){let p=mesh(new THREE.CylinderGeometry(.12,.16,.8,8),i%2?shared.pink:shared.orange,scene);p.position.set(s*4,.2,-i*8-3)}}
+ for(let i=0;i<14;i++)for(let s of [-1,1]){let cloud=mesh(new THREE.SphereGeometry(.65+Math.random()*.4,14,10),shared.white,scene);cloud.position.set(s*(5+Math.random()*3),2+Math.random()*3,-i*7-5);cloud.scale.y=.45}
+ buildHero();hero.position.z=2;clock=new THREE.Clock();$('#load').textContent='Thế giới 3D đã sẵn sàng!';animate()
+}
+function obstacle(type,l,z){let g=new THREE.Group();g.position.set((l-1)*1.35,0,z);scene.add(g);if(type==='block'){let b=mesh(new THREE.BoxGeometry(.9,.95,.8),mat('#ed687c'),g);b.position.y=.48}else if(type==='bar'){let b=mesh(new THREE.BoxGeometry(1.15,.18,.24),shared.purple,g);b.position.y=1.25}else if(type==='gap'){let b=mesh(new THREE.BoxGeometry(1.05,.05,1.3),shared.dark,g);b.position.y=-.1}else{let pivot=new THREE.Group();g.add(pivot);pivot.position.y=1.2;let arm=mesh(new THREE.BoxGeometry(.15,1.5,.18),shared.purple,pivot);arm.position.y=-.45;let head=mesh(new THREE.BoxGeometry(1.05,.55,.65),shared.gold,pivot);head.position.y=-1.1;g.userData.pivot=pivot}g.userData={...g.userData,type,lane:l,hit:false};items.push(g)}
+function coin(l,z){let g=new THREE.Group();g.position.set((l-1)*1.35,.95,z);scene.add(g);let ring=mesh(new THREE.TorusGeometry(.25,.075,12,24),shared.gold,g);ring.rotation.y=Math.PI/2;g.userData={type:'coin',lane:l,hit:false};items.push(g)}
+function spawn(){let l=Math.floor(Math.random()*3),r=Math.random();if(r<.25)coin(l,-48);else obstacle(['block','bar','gap','hammer'][Math.floor(Math.random()*4)],l,-48);spawnDist=dist}
+function pop(s){$('#toast').textContent=s;$('#toast').style.opacity=1;toast=.8}
+function start(){state='play';dist=coins=elapsed=spawnDist=jumpY=vy=duck=0;lane=target=1;items.forEach(o=>scene.remove(o));items=[];$('#coins').textContent=0;$('#score').textContent='0 m';$('#overlay').style.display='none';$('#pause').textContent='Ⅱ'}
+$('#start').onclick=start;document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>setSkin(+b.dataset.skin));
+function move(d){if(state==='play')target=Math.max(0,Math.min(2,target+d))}function jump(){if(state==='play'&&jumpY===0){vy=8.2;pop('BOING!')}}function slide(){if(state==='play')duck=.65}
+[['left',()=>move(-1)],['right',()=>move(1)],['jump',jump],['slide',slide]].forEach(([id,fn])=>$('#'+id).addEventListener('pointerdown',e=>{e.preventDefault();fn()}));
+function panel(title,desc,label,fn){$('#overlay').style.display='flex';$('#overlay').innerHTML='<div class="panel"><div style="font-size:46px">😵‍💫</div><h1>'+title+'</h1><p>'+desc+'</p><button class="main" id="panelbtn">'+label+'</button></div>';$('#panelbtn').onclick=fn}
+function pause(){if(state==='play'){state='pause';panel('TẠM DỪNG','BUBU nghỉ một chút nhé!','TIẾP TỤC ▶',()=>{state='play';$('#overlay').style.display='none';$('#pause').textContent='Ⅱ'});$('#pause').textContent='▶'}}$('#pause').onclick=pause;
+function finish(){if(state!=='play')return;state='fall';best=Math.max(best,Math.floor(dist*2));try{localStorage.setItem('cb05best',best)}catch(e){}$('#best').textContent=best;panel('BUBU NGÃ RỒI!', 'Quãng đường: '+Math.floor(dist*2)+' m<br>Vàng: 🪙 '+coins+'<br>Kỷ lục: 🏆 '+best+' m','CHƠI LẠI ↻',start)}
+function update(dt){
+ if(state==='play'){elapsed+=dt;dist+=dt*6;lane+=(target-lane)*Math.min(1,dt*12);jumpY+=vy*dt;vy-=19*dt;if(jumpY<0){jumpY=0;vy=0}duck=Math.max(0,duck-dt);hero.position.x=(lane-1)*1.35;hero.position.y=jumpY+(duck?-.25:Math.abs(Math.sin(elapsed*11))*.035);hero.scale.y=duck?.68:1;hero.rotation.z=(target-lane)*-.12;body.rotation.z=Math.sin(elapsed*7)*.025;legs[0].rotation.x=Math.sin(elapsed*13)*.7;legs[1].rotation.x=-Math.sin(elapsed*13)*.7;arms[0].rotation.z=Math.sin(elapsed*13)*.18;arms[1].rotation.z=-Math.sin(elapsed*13)*.18;camera.position.x+=(hero.position.x*.18-camera.position.x)*dt*2;camera.lookAt(hero.position.x*.12,1,-5);
+ if(dist-spawnDist>7)spawn();for(let i=items.length-1;i>=0;i--){let o=items[i];o.position.z+=dt*12;if(o.userData.pivot)o.userData.pivot.rotation.z=Math.sin(elapsed*4)*.75;if(!o.userData.hit&&o.position.z>1.05&&o.position.z<2.95&&o.userData.lane===Math.round(lane)){if(o.userData.type==='coin'){o.userData.hit=true;coins++;$('#coins').textContent=coins;pop('🪙 +1 VÀNG!')}else{let t=o.userData.type,safe=t==='block'?jumpY>1.05:t==='bar'?duck>.15:t==='gap'?jumpY>1.25:jumpY>1.5||duck>.2;if(safe){o.userData.hit=true;pop('NÉ ĐẸP! ✨')}else finish()}}if(o.position.z>9){scene.remove(o);items.splice(i,1)}}$('#score').textContent=Math.floor(dist*2)+' m';if(toast>0){toast-=dt;if(toast<=0)$('#toast').style.opacity=0}}
+ else if(state==='fall'&&hero){hero.rotation.z+=(1.2-hero.rotation.z)*Math.min(1,dt*5);hero.rotation.x+=(.65-hero.rotation.x)*Math.min(1,dt*4)}
+}
+function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.04);update(dt);if(renderer)renderer.render(scene,camera)}
+window.addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1);if(e.key==='ArrowUp'||e.key===' ')jump();if(e.key==='ArrowDown')slide();if(e.key==='Escape')pause()});
+try{build()}catch(e){$('#load').textContent='Lỗi khởi tạo 3D: '+e.message;console.error(e)}
+</script></body></html>
