@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CHAOS BUDDIES v0.1</title>
+<style>
+:root{--ink:#172033;--cyan:#4de2d0;--yellow:#ffd45c}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a32;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;inset:0;pointer-events:none;color:white;text-shadow:0 2px 5px #14203a}
+.top{position:absolute;top:max(14px,env(safe-area-inset-top));left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start}
+.pill{background:#162440cc;border:1px solid #ffffff30;border-radius:16px;padding:8px 13px;font-weight:800;backdrop-filter:blur(8px)}
+#score{font-size:19px;color:var(--yellow)}#help{font-size:12px;opacity:.9;text-align:right;max-width:160px}
+#center{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);text-align:center;width:min(90%,420px)}
+#center h1{font-size:clamp(32px,9vw,54px);line-height:.95;margin:0;color:#fff;letter-spacing:-2px;text-shadow:0 5px 0 #263c6b,0 10px 25px #0008}
+#center p{font-weight:700;font-size:14px}
+#start{pointer-events:auto;border:0;border-radius:18px;padding:14px 28px;background:linear-gradient(135deg,#ffe16c,#ff9c4a);color:#39264c;font-size:17px;font-weight:1000;box-shadow:0 6px 0 #bd693d;cursor:pointer}
+#controls{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:0;right:0;display:flex;justify-content:space-between;padding:0 22px;align-items:end}
+.pad{display:flex;gap:10px;pointer-events:auto}
+.ctrl{width:66px;height:66px;border-radius:22px;border:2px solid #ffffff65;background:#152747bb;color:white;font-size:25px;font-weight:900;box-shadow:0 5px 0 #081329;touch-action:none}
+.ctrl.action{background:#ffb84e;color:#422c38;border-color:#fff2}
+#toast{position:absolute;top:23%;left:50%;transform:translateX(-50%);font-weight:1000;font-size:22px;color:#ffe16c;opacity:0;transition:opacity .15s}
+#bar{position:absolute;top:67px;left:14px;right:14px;height:7px;border-radius:9px;background:#ffffff35;overflow:hidden}
+#progress{height:100%;width:0;background:linear-gradient(90deg,#4de2d0,#ffe16c)}
+@media(min-width:700px){#controls{max-width:700px;margin:auto}.ctrl{width:74px;height:74px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div class="top"><div class="pill">🏁 CHAOS BUDDIES <span style="color:#4de2d0">v0.1</span><div id="score">0 m</div></div><div class="pill" id="help">← → di chuyển<br>↑ nhảy · ↓ trượt</div></div>
+ <div id="bar"><div id="progress"></div></div>
+ <div id="toast">NICE!</div>
+ <div id="center"><h1>CHAOS<br>BUDDIES</h1><p>VƯỢT CHƯỚNG NGẠI · ĐỪNG RƠI!</p><button id="start">CHƠI NGAY ▶</button></div>
+ <div id="controls">
+  <div class="pad"><button class="ctrl" id="left">◀</button><button class="ctrl" id="right">▶</button></div>
+  <div class="pad"><button class="ctrl action" id="slide">↓</button><button class="ctrl action" id="jump">↑</button></div>
+ </div>
+</div>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W,H,dpr,mode='menu',t=0,dist=0,score=0,lane=0,targetLane=0,y=0,vy=0,slide=0,speed=5,obstacles=[],particles=[],lastSpawn=0,toastTimer=0;
+const $=id=>document.getElementById(id);
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+function start(){mode='play';t=0;dist=0;score=0;lane=0;targetLane=0;y=0;vy=0;slide=0;obstacles=[];particles=[];lastSpawn=0;$('center').style.display='none';$('toast').style.opacity=0}
+$('start').onclick=start;
+function move(d){if(mode!=='play')return;targetLane=Math.max(-1,Math.min(1,targetLane+d))}
+function jump(){if(mode==='play'&&y===0){vy=13;pop('BOING!')}}
+function duck(){if(mode==='play'){slide=.55;}}
+[['left',()=>move(-1)],['right',()=>move(1)],['jump',jump],['slide',duck]].forEach(([id,fn])=>{
+ const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();fn()});
+});
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')move(-1);if(e.key==='ArrowRight'||e.key==='d')move(1);if(e.key==='ArrowUp'||e.key===' ')jump();if(e.key==='ArrowDown'||e.key==='s')duck();if(e.key==='Enter'&&mode!=='play')start()});
+function pop(s){$('toast').textContent=s;$('toast').style.opacity=1;toastTimer=.7}
+function spawn(){let lane=Math.floor(Math.random()*3)-1;let type=['block','barrier','gap'][Math.floor(Math.random()*3)];obstacles.push({lane,z:1,type,passed:false});}
+function project(z,l){let depth=1-z;let horizon=H*.28;let scale=.25+depth*1.25;let x=W/2+l*(W*.17*scale);let yy=horizon+depth*(H*.68);return{x,y:yy,s:scale}}
+function rounded(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#7ed8ee');sky.addColorStop(.55,'#c6f4e7');sky.addColorStop(1,'#7bc6a5');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<5;i++){let x=((i*233-t*9)%(W+180)+W+180)%(W+180)-80;ctx.fillStyle='#ffffff88';ctx.beginPath();ctx.arc(x, H*.17+(i%2)*28,22,0,7);ctx.arc(x+25,H*.16+(i%2)*28,28,0,7);ctx.arc(x+53,H*.18+(i%2)*28,18,0,7);ctx.fill()}
+ let hz=H*.28;ctx.fillStyle='#6571a5';ctx.beginPath();ctx.moveTo(W*.39,hz);ctx.lineTo(W*.61,hz);ctx.lineTo(W*1.08,H);ctx.lineTo(-W*.08,H);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#8794c5';ctx.beginPath();ctx.moveTo(W*.405,hz);ctx.lineTo(W*.595,hz);ctx.lineTo(W*.99,H);ctx.lineTo(W*.01,H);ctx.closePath();ctx.fill();
+ for(let i=0;i<12;i++){let z=((i/12+(dist*.018)%1)%1);let p=project(z,0);let width=2+p.s*2;ctx.fillStyle='#ffffff88';ctx.fillRect(W/2-width/2,p.y,width,Math.max(2,p.s*8))}
+ for(let i=0;i<8;i++){let z=((i/8+(dist*.012)%1)%1),p=project(z, i%2?2.1:-2.1);ctx.fillStyle=i%2?'#ffbd62':'#f36f9a';ctx.beginPath();ctx.arc(p.x,p.y,Math.max(2,p.s*10),0,7);ctx.fill()}
+ obstacles.slice().sort((a,b)=>a.z-b.z).forEach(o=>{let p=project(o.z,o.lane);let w=34*p.s,h=34*p.s;
+ if(o.type==='block'){rounded(p.x-w/2,p.y-h,w,h,8*p.s,'#f06b79');rounded(p.x-w/2+5*p.s,p.y-h+5*p.s,w-10*p.s,7*p.s,4*p.s,'#ffb3a4')}
+ else if(o.type==='barrier'){rounded(p.x-w/2,p.y-h*1.25,w,h*.35,6*p.s,'#8c5de8');rounded(p.x-w/2+4*p.s,p.y-h*1.25+3*p.s,w-8*p.s,4*p.s,3*p.s,'#d6b8ff')}
+ else {ctx.fillStyle='#26334f';ctx.beginPath();ctx.ellipse(p.x,p.y,w*.65,h*.25,0,0,7);ctx.fill();ctx.strokeStyle='#ffce61';ctx.lineWidth=3*p.s;ctx.stroke()}
+ });
+ let px=W/2+lane*W*.17, base=H*.79-y*5, scale=Math.min(W/390,1.35);
+ ctx.fillStyle='#26334f55';ctx.beginPath();ctx.ellipse(px, H*.81,22*scale,7*scale,0,0,7);ctx.fill();
+ let bob=Math.sin(t*10)*2*scale;
+ ctx.save();ctx.translate(px,base+bob);if(slide>0)ctx.scale(1.25,.62);
+ rounded(-13*scale,-8*scale,10*scale,17*scale,5*scale,'#ff9a45');rounded(4*scale,-8*scale,10*scale,17*scale,5*scale,'#ff9a45');
+ ctx.fillStyle='#36d9c5';ctx.beginPath();ctx.ellipse(0,-29*scale,23*scale,25*scale,0,0,7);ctx.fill();
+ ctx.fillStyle='#a8fff0';ctx.beginPath();ctx.ellipse(0,-23*scale,13*scale,15*scale,0,0,7);ctx.fill();
+ ctx.fillStyle='white';ctx.beginPath();ctx.ellipse(-8*scale,-36*scale,6*scale,8*scale,0,0,7);ctx.ellipse(8*scale,-36*scale,6*scale,8*scale,0,0,7);ctx.fill();
+ ctx.fillStyle='#24334f';ctx.beginPath();ctx.arc(-7*scale,-35*scale,2.7*scale,0,7);ctx.arc(9*scale,-35*scale,2.7*scale,0,7);ctx.fill();
+ ctx.strokeStyle='#24334f';ctx.lineWidth=2*scale;ctx.beginPath();ctx.arc(0,-25*scale,6*scale,.15,Math.PI-.15);ctx.stroke();
+ ctx.fillStyle='#ff8b9d';ctx.beginPath();ctx.arc(-16*scale,-26*scale,3*scale,0,7);ctx.arc(16*scale,-26*scale,3*scale,0,7);ctx.fill();
+ ctx.restore();
+ let g=ctx.createRadialGradient(W/2,H*.95,10,W/2,H*.95,W*.6);g.addColorStop(0,'#fff3a322');g.addColorStop(1,'#fff3a300');ctx.fillStyle=g;ctx.fillRect(0,H*.7,W,H*.3);
+}
+function update(dt){
+ t+=dt;if(mode!=='play')return;
+ dist+=speed*dt;score=Math.floor(dist*2);speed=Math.min(8,5+dist*.002);
+ lane+=(targetLane-lane)*Math.min(1,dt*12);
+ if(y>0||vy>0){y+=vy;vy-=.65;if(y<0){y=0;vy=0}}
+ slide=Math.max(0,slide-dt);
+ if(dist-lastSpawn>17){spawn();lastSpawn=dist}
+ obstacles.forEach(o=>{
+  o.z-=dt*(.36+speed*.025);
+  if(!o.passed&&o.z<.10&&o.z>-.02){
+   let same=Math.abs(lane-o.lane)<.48;
+   let avoid=o.type==='block'?y>13:o.type==='barrier'?slide>0.12:y>14;
+   if(same&&!avoid){mode='over';$('center').style.display='block';$('center').innerHTML=`<h1>ỐI! 😵</h1><p>Bạn đã chạy được ${score} mét</p><button id="start">CHƠI LẠI ↻</button>`;$('start').onclick=start}
+   else if(same){o.passed=true;pop('QUÁ ĐỈNH! ✨')}
+  }
+ });
+ obstacles=obstacles.filter(o=>o.z>-.15);
+ $('score').textContent=score+' m';$('progress').style.width=(score%500)/5+'%';
+ if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0}
+}
+let last=0;function loop(now){let dt=Math.min((now-last)/1000||0,.035);last=now;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+})();
+</script>
+</body></html>
