@@ -12,10 +12,12 @@
 - **v0.7 direct play:** https://tainguyen1234.github.io/chaos-buddies/versions/v0.7/
 
 ## Controls
-- Arrow buttons / WASD: move around the arena
+- Mobile: drag the large virtual joystick on the lower-left to move in any direction
+- Keyboard: WASD / arrow keys
 - ⚡ HÚC: dash into nearby opponents to knock them back
 - 🛡 KHIÊN: temporary protection
-- Mobile: use on-screen controls
+- ⚡ HÚC: dash; automatically aims toward the nearest opponent when one is close
+- 🛡 KHIÊN: temporary protection
 
 ## Notes
 This is a single-player browser prototype with AI opponents, not online multiplayer. Three.js is loaded from a CDN and requires an Internet connection. Gameplay, collision tuning, device performance and visual polish still need playtesting.
