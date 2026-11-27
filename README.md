@@ -5,6 +5,7 @@
 ## Versions
 - **v0.1** — first playable prototype: three-lane movement, jump, slide, obstacles, score.
 - **v0.2** — adds collectible coins, hammer obstacles, combo feedback, pause/resume, and a locally saved personal best.
+- **v0.3** — first actual WebGL 3D scene using Three.js: 3D BUBU, perspective track, 3D obstacles, rotating hammer, coins, touch controls and pause/retry.
 
 ## Run
 Open the version's `index.html` in a modern browser. The prototypes use HTML Canvas and vanilla JavaScript; no build step or external library is required.
