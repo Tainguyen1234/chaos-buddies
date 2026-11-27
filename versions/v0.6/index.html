@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>CHAOS BUDDIES v0.6</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#a9e9ed;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}#game{position:fixed;inset:0}canvas{display:block}#hud{position:fixed;inset:0;color:white;pointer-events:none;text-shadow:0 2px 5px #17213b}.top{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:7px}.pill{background:#172846dc;border:1px solid #ffffff55;border-radius:14px;padding:7px 10px;font-size:12px;font-weight:850}#score{font-size:19px;color:#ffe17b}#mission{position:absolute;top:68px;left:12px;right:12px;background:#172846c9;border-radius:10px;padding:7px 10px;font-size:11px;font-weight:800}#meter{height:5px;background:#ffffff55;border-radius:9px;margin-top:5px;overflow:hidden}#fill{height:100%;width:0;background:#ffe17b}#controls{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));left:0;right:0;display:flex;justify-content:space-between;padding:0 14px}.pad{display:flex;gap:8px;pointer-events:auto}.ctrl{width:58px;height:58px;border:2px solid #ffffff88;border-radius:18px;background:#172846e8;color:white;font-size:23px;font-weight:900;touch-action:none}.act{background:#ffbf55;color:#443044}#pause{position:absolute;right:12px;top:112px;pointer-events:auto;background:#172846df;color:white;border:1px solid #fff8;border-radius:12px;padding:8px 11px;font-weight:900}#toast{position:absolute;top:25%;left:50%;transform:translateX(-50%);font-size:23px;font-weight:1000;color:#fff07a;white-space:nowrap;opacity:0;transition:opacity .12s}#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:#10203b77;color:white}.panel{width:min(410px,100%);border:1px solid #ffffff66;border-radius:25px;padding:22px 18px;background:linear-gradient(145deg,#254b70f5,#192440f7);box-shadow:0 18px 60px #0006}.panel h1{font-size:34px;line-height:.96;margin:0}.panel p{font-weight:700;line-height:1.4}.main{border:0;border-radius:14px;background:linear-gradient(135deg,#ffe276,#ff9e50);padding:13px 23px;color:#402b43;font-weight:1000;font-size:16px;box-shadow:0 4px #b76c43}.hint{font-size:12px;color:#dceaff}
+</style></head><body><div id="game"></div><div id="hud"><div class="top"><div class="pill">🌈 CHAOS BUDDIES <span style="color:#55e4d3">v0.6</span><div id="score">0 m</div></div><div class="pill">⭐ <span id="stars">0</span>　🔥 x<span id="combo">1</span></div></div><div id="mission">NHIỆM VỤ: Thu thập 8 sao <span id="task">0/8</span><div id="meter"><div id="fill"></div></div></div><button id="pause">Ⅱ</button><div id="toast"></div><div id="controls"><div class="pad"><button class="ctrl" id="left">◀</button><button class="ctrl" id="right">▶</button></div><div class="pad"><button class="ctrl act" id="slide">↓</button><button class="ctrl act" id="jump">↑</button></div></div></div>
+<div id="overlay"><div class="panel"><div style="font-size:54px">🐻‍❄️</div><h1>CHAOS BUDDIES<br>PARTY DASH</h1><p>GẶP POMI – NGƯỜI BẠN BÔNG MỀM!</p><p>Thu thập sao · né bẫy · giữ combo · dùng khiên cứu nguy.</p><p class="hint">Điều khiển: ◀ ▶ đổi làn · ↑ nhảy · ↓ trượt</p><button class="main" id="start">BẮT ĐẦU CUỘC VUI ▶</button><p class="hint" id="load">Đang tải thế giới 3D…</p></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const $=s=>document.querySelector(s),host=$('#game');
+let scene,camera,renderer,clock,pomi,body,legs=[],arms=[],items=[],lane=1,target=1,jy=0,vy=0,duck=0,dist=0,stars=0,combo=1,best=0,spawnD=0,state='menu',time=0,toast=0,shield=0,magnet=0,missionDone=false;
+try{best=+(localStorage.getItem('cb06best')||0)}catch(e){}
+const mat=(c,r=.5,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const M={fur:mat('#9be8d7',.8),light:mat('#d7fff0',.7),ear:mat('#ff9fb0'),inner:mat('#ffe0df'),eye:mat('#24324b',.22),white:mat('#fff',.2),cheek:mat('#ff9eae'),shoe:mat('#ff9c52'),sole:mat('#fff'),gold:mat('#ffd34f',.25,.25),road:mat('#7788b8'),edge:mat('#52648f'),red:mat('#ed7185'),blue:mat('#64c7ed'),purple:mat('#8d70df'),green:mat('#5dd7b2')};
+function mesh(g,m,p){let o=new THREE.Mesh(g,m);p.add(o);o.castShadow=true;o.receiveShadow=true;return o}
+function makePomi(){
+ pomi=new THREE.Group();scene.add(pomi);
+ body=mesh(new THREE.SphereGeometry(.7,32,28),M.fur,pomi);body.scale.set(.88,1.03,.78);body.position.y=.92;
+ // soft fluffy silhouette tufts
+ for(let i=0;i<7;i++){let a=i*Math.PI*2/7;let tuft=mesh(new THREE.SphereGeometry(.22,16,12),M.fur,pomi);tuft.scale.set(1,.9,.9);tuft.position.set(Math.cos(a)*.48,.91+Math.sin(a)*.48,.02)}
+ let muzzle=mesh(new THREE.SphereGeometry(.3,24,18),M.light,pomi);muzzle.scale.set(1,.7,.42);muzzle.position.set(0,.73,.55);
+ // small floppy ears, not antennae
+ for(let s of [-1,1]){let ear=mesh(new THREE.SphereGeometry(.22,20,16),M.fur,pomi);ear.scale.set(.72,1.25,.48);ear.position.set(s*.49,1.47,.05);ear.rotation.z=-s*.42;let inner=mesh(new THREE.SphereGeometry(.12,16,12),M.inner,pomi);inner.scale.set(.8,1,.35);inner.position.set(s*.49,1.48,.24);inner.rotation.z=-s*.42;
+ let eye=mesh(new THREE.SphereGeometry(.075,20,16),M.eye,pomi);eye.position.set(s*.21,1.04,.70);let shine=mesh(new THREE.SphereGeometry(.022,12,10),M.white,pomi);shine.position.set(s*.21-.02,1.07,.76);
+ let cheek=mesh(new THREE.SphereGeometry(.105,16,12),M.cheek,pomi);cheek.scale.set(1,.55,.28);cheek.position.set(s*.4,.79,.59);
+ let arm=new THREE.Group();pomi.add(arm);arm.position.set(s*.58,.73,0);let hand=mesh(new THREE.SphereGeometry(.14,16,12),M.fur,arm);hand.position.set(s*.12,-.12,.12);arms.push(arm);
+ let leg=new THREE.Group();pomi.add(leg);leg.position.set(s*.23,.32,0);let foot=mesh(new THREE.SphereGeometry(.19,16,12),M.shoe,leg);foot.scale.set(1,.6,1.3);foot.position.set(0,-.12,.1);let sole=mesh(new THREE.BoxGeometry(.3,.06,.4),M.sole,leg);sole.position.set(0,-.23,.12);legs.push(leg)}
+ let nose=mesh(new THREE.SphereGeometry(.065,16,12),M.shoe,pomi);nose.scale.set(1,.7,.6);nose.position.set(0,.83,.79);
+ let mouth=mesh(new THREE.TorusGeometry(.075,.014,8,18,Math.PI),M.eye,pomi);mouth.position.set(0,.68,.81);mouth.rotation.z=Math.PI;
+ let scarf=mesh(new THREE.TorusGeometry(.48,.09,10,32),M.shoe,pomi);scarf.scale.set(1,.48,1);scarf.position.set(0,.48,.02);
+ let badge=mesh(new THREE.SphereGeometry(.105,16,12),M.gold,pomi);badge.position.set(.18,.48,.48);
+}
+function build(){
+ scene=new THREE.Scene();scene.background=new THREE.Color('#a8e7ec');scene.fog=new THREE.Fog('#a8e7ec',24,86);
+ camera=new THREE.PerspectiveCamera(57,innerWidth/innerHeight,.1,130);camera.position.set(0,5.1,8.5);camera.lookAt(0,1,-5);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight('#efffff','#526080',2.2));let sun=new THREE.DirectionalLight('#fff4dc',2.5);sun.position.set(-5,10,7);sun.castShadow=true;scene.add(sun);
+ let floor=mesh(new THREE.BoxGeometry(8,.25,115),M.road,scene);floor.position.set(0,-.22,-44);
+ for(let x of [-1.35,1.35]){let l=mesh(new THREE.BoxGeometry(.04,.02,115),M.white,scene);l.position.set(x,-.08,-44)}
+ for(let s of [-1,1]){let rail=mesh(new THREE.BoxGeometry(.18,.5,115),M.edge,scene);rail.position.set(s*3.9,.05,-44);for(let i=0;i<15;i++){let p=mesh(new THREE.CylinderGeometry(.12,.16,.8,8),i%2?M.blue:M.shoe,scene);p.position.set(s*4,.2,-i*8-3)}}
+ for(let i=0;i<16;i++)for(let s of [-1,1]){let cloud=mesh(new THREE.SphereGeometry(.7+Math.random()*.4,12,10),M.white,scene);cloud.position.set(s*(5+Math.random()*3),2+Math.random()*3,-i*7-5);cloud.scale.y=.45}
+ makePomi();pomi.position.z=2;clock=new THREE.Clock();$('#load').textContent='POMI đã sẵn sàng!';animate()
+}
+function spawnObstacle(type,l,z){let g=new THREE.Group();g.position.set((l-1)*1.35,0,z);scene.add(g);if(type==='crate'){let b=mesh(new THREE.BoxGeometry(.85,.9,.8),M.red,g);b.position.y=.45;let band=mesh(new THREE.BoxGeometry(.9,.12,.82),M.gold,g);band.position.y=.55}else if(type==='bar'){let b=mesh(new THREE.BoxGeometry(1.15,.18,.22),M.purple,g);b.position.y=1.18}else if(type==='spinner'){let pivot=new THREE.Group();g.add(pivot);pivot.position.y=.9;let arm=mesh(new THREE.BoxGeometry(1.35,.16,.18),M.shoe,pivot);arm.position.y=.15;let ball=mesh(new THREE.SphereGeometry(.22,16,12),M.gold,pivot);ball.position.x=.65;g.userData.pivot=pivot}else{let a=mesh(new THREE.BoxGeometry(.14,1.2,.2),M.blue,g);a.position.x=-.52;a.position.y=.6;let b=mesh(new THREE.BoxGeometry(.14,1.2,.2),M.blue,g);b.position.x=.52;b.position.y=.6;let c=mesh(new THREE.BoxGeometry(1.15,.15,.2),M.purple,g);c.position.y=1.2}g.userData={...g.userData,type,lane:l,hit:false};items.push(g)}
+function pickup(type,l,z){let g=new THREE.Group();g.position.set((l-1)*1.35,.95,z);scene.add(g);let geo=type==='star'?new THREE.TorusGeometry(.22,.075,10,20):new THREE.SphereGeometry(.22,18,14);let ob=mesh(geo,type==='star'?M.gold:type==='shield'?M.blue:M.green,g);if(type==='star')ob.rotation.y=Math.PI/2;g.userData={type,lane:l,hit:false};items.push(g)}
+function spawn(){let l=Math.floor(Math.random()*3),r=Math.random();if(r<.26)pickup('star',l,-50);else if(r<.34)pickup(Math.random()<.5?'shield':'magnet',l,-50);else{spawnObstacle(['crate','bar','spinner','gate'][Math.floor(Math.random()*4)],l,-50);if(Math.random()<.5)pickup('star',(l+1)%3,-57)}spawnD=dist}
+function pop(s){$('#toast').textContent=s;$('#toast').style.opacity=1;toast=.85}
+function start(){state='play';dist=stars=time=spawnD=jy=vy=duck=shield=magnet=0;combo=1;lane=target=1;items.forEach(o=>scene.remove(o));items=[];missionDone=false;$('#stars').textContent=0;$('#combo').textContent=1;$('#score').textContent='0 m';$('#task').textContent='0/8';$('#fill').style.width='0';$('#overlay').style.display='none';$('#pause').textContent='Ⅱ';pomi.rotation.set(0,0,0)}
+$('#start').onclick=start;
+function move(d){if(state==='play')target=Math.max(0,Math.min(2,target+d))}
+function jump(){if(state==='play'&&jy===0){vy=8.4;pop('NHẢY NÀO!')}}
+function slide(){if(state==='play')duck=.72}
+[['left',()=>move(-1)],['right',()=>move(1)],['jump',jump],['slide',slide]].forEach(([id,fn])=>$('#'+id).addEventListener('pointerdown',e=>{e.preventDefault();fn()}));
+function panel(title,desc,label,fn){$('#overlay').style.display='flex';$('#overlay').innerHTML='<div class="panel"><div style="font-size:48px">🎉</div><h1>'+title+'</h1><p>'+desc+'</p><button class="main" id="panelbtn">'+label+'</button></div>';$('#panelbtn').onclick=fn}
+function pause(){if(state==='play'){state='pause';panel('TẠM NGHỈ','POMI đang lấy đà!','CHƠI TIẾP ▶',()=>{state='play';$('#overlay').style.display='none';$('#pause').textContent='Ⅱ'});$('#pause').textContent='▶'}}$('#pause').onclick=pause;
+function end(){if(state!=='play')return;state='over';best=Math.max(best,Math.floor(dist*2));try{localStorage.setItem('cb06best',best)}catch(e){}panel('HẾT GIỜ VUI!', 'Bạn chạy '+Math.floor(dist*2)+' m và gom được '+stars+' ngôi sao!','THỬ LẠI ↻',start)}
+function update(dt){
+ if(state!=='play')return;time+=dt;dist+=dt*(6+Math.min(4,dist/180));lane+=(target-lane)*Math.min(1,dt*13);jy+=vy*dt;vy-=19*dt;if(jy<0){jy=0;vy=0}duck=Math.max(0,duck-dt);shield=Math.max(0,shield-dt);magnet=Math.max(0,magnet-dt);
+ pomi.position.x=(lane-1)*1.35;pomi.position.y=jy+(duck?-.2:Math.abs(Math.sin(time*11))*.035);pomi.scale.y=duck?.7:1;pomi.rotation.z=(target-lane)*-.13;body.rotation.z=Math.sin(time*6)*.025;legs[0].rotation.x=Math.sin(time*13)*.65;legs[1].rotation.x=-Math.sin(time*13)*.65;arms[0].rotation.z=Math.sin(time*13)*.18;arms[1].rotation.z=-Math.sin(time*13)*.18;
+ camera.position.x+=(pomi.position.x*.18-camera.position.x)*dt*2;camera.lookAt(pomi.position.x*.12,1,-5);
+ if(dist-spawnD>Math.max(5.2,7.2-dist/180))spawn();
+ for(let i=items.length-1;i>=0;i--){let o=items[i];o.position.z+=dt*(12+Math.min(5,dist/90));if(o.userData.pivot)o.userData.pivot.rotation.y=Math.sin(time*4)*1.15;
+  let same=o.userData.lane===Math.round(lane),close=o.position.z>1&&o.position.z<3.1;
+  if(!o.userData.hit&&close&&o.userData.type!=='crate'&&o.userData.type!=='bar'&&o.userData.type!=='spinner'&&o.userData.type!=='gate'&&magnet>0)same=true;
+  if(!o.userData.hit&&same&&close){let t=o.userData.type;if(t==='star'){o.userData.hit=true;stars++;combo=Math.min(9,combo+1);$('#stars').textContent=stars;$('#combo').textContent=combo;pop(combo>3?'COMBO x'+combo+'!':'⭐ +1 SAO!');if(stars>=8&&!missionDone){missionDone=true;shield=5;pop('NHIỆM VỤ HOÀN THÀNH! +KHIÊN')}}else if(t==='shield'){o.userData.hit=true;shield=8;pop('🛡 KHIÊN BẢO VỆ!')}else if(t==='magnet'){o.userData.hit=true;magnet=8;pop('🧲 HÚT SAO!')}else{let safe=t==='crate'?jy>1.05:t==='bar'?duck>.15:t==='gate'?false:jy>1.3||duck>.2;if(safe){o.userData.hit=true;combo=Math.min(9,combo+1);$('#combo').textContent=combo;pop('NÉ SÁT NÚT! 🔥')}else if(shield>0){o.userData.hit=true;shield=0;pop('KHIÊN ĐỠ ĐÒN!')}else{end()}}}
+  if(o.position.z>9){scene.remove(o);items.splice(i,1)}
+ }
+ $('#score').textContent=Math.floor(dist*2)+' m';$('#task').textContent=Math.min(stars,8)+'/8';$('#fill').style.width=Math.min(100,stars/8*100)+'%';if(toast>0){toast-=dt;if(toast<=0)$('#toast').style.opacity=0}
+}
+function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.04);update(dt);if(renderer)renderer.render(scene,camera)}
+window.addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1);if(e.key==='ArrowUp'||e.key===' ')jump();if(e.key==='ArrowDown')slide();if(e.key==='Escape')pause()});
+try{build()}catch(e){$('#load').textContent='Không tải được 3D: '+e.message;console.error(e)}
+</script></body></html>
