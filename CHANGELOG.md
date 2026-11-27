@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3
+- Added first WebGL 3D playground built with Three.js.
+- Added a modeled 3D BUBU mascot, perspective track, scenery, lighting and shadows.
+- Added 3D block, overhead bar, gap and rotating hammer obstacles.
+- Added lane movement, jump, slide, coins, score, personal best and pause/retry UI.
+- Uses Three.js from a CDN; an Internet connection is required to load the 3D engine.
+
+
 ## v0.2
 - Added collectible gold coins.
 - Added hammer obstacle type.
