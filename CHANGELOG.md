@@ -1,13 +1,17 @@
 # Changelog
 
+## v0.7 — Party Rumble
+- Replaced the endless-runner loop with a circular 3D party arena.
+- Rebuilt the playable buddy with eyes and facial features placed on the front-facing (+Z) side toward the gameplay camera.
+- Added seven AI opponents with movement and knockback reactions.
+- Added dash attack and temporary shield abilities.
+- Added rotating sweeper hazard, collectible arena gems and a gradually shrinking arena.
+- Added last-buddy-standing victory and elimination feedback.
+- Preserved versions v0.1–v0.6 unchanged.
+- This is an offline single-player AI prototype; no online multiplayer is implemented.
+
 ## v0.6 — Party Dash
-- Replaced the uncanny jelly/antenna mascot with POMI, a soft rounded plush-like buddy with floppy ears, a small face, blush cheeks, scarf and tiny shoes.
-- Added collectible stars and a mission target of 8 stars.
-- Added combo chain for consecutive pickups and clean obstacle dodges.
-- Added shield and magnet power-ups with timed effects.
-- Added more frequent obstacle patterns: crates, overhead bars, gates and rotating spinners.
-- Increased run speed gradually to create escalating challenge.
-- Kept all previous versions unchanged.
+- Added POMI plush-like mascot, collectible stars, combo, shield and magnet power-ups, and progressive runner speed.
 
 ## v0.5
 - Experimental glossy jelly mascot redesign with antennae, oversized eyes and color variants.
