@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>CHAOS BUDDIES v0.2</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#111d38;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;inset:0;color:#fff;pointer-events:none;text-shadow:0 2px 5px #17213b}
+.top{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;align-items:start}.pill{background:#172846d9;border:1px solid #ffffff38;border-radius:14px;padding:8px 11px;font-size:13px;font-weight:850;backdrop-filter:blur(8px)}#score{font-size:20px;color:#ffdc70}#stats{display:flex;gap:6px}
+#progress{position:absolute;top:70px;left:14px;right:14px;height:6px;background:#ffffff55;border-radius:9px;overflow:hidden}#fill{height:100%;width:0;background:linear-gradient(90deg,#45dfca,#ffe16d)}
+#controls{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:0;right:0;display:flex;justify-content:space-between;padding:0 18px;align-items:end;pointer-events:none}.pad{display:flex;gap:9px;pointer-events:auto}.ctrl{width:62px;height:62px;border:2px solid #ffffff77;border-radius:20px;background:#172846db;color:#fff;font-size:24px;font-weight:900;box-shadow:0 5px 0 #09142b;touch-action:none}.ctrl.act{background:#ffbd50;color:#422d3d}
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;background:#101a32a8;color:white}.panel{width:min(390px,100%);border:1px solid #ffffff55;border-radius:25px;padding:25px 20px;background:linear-gradient(145deg,#203d68f2,#192440f5);box-shadow:0 20px 70px #0007}.panel h1{font-size:42px;line-height:.92;margin:0;color:#fff;text-shadow:0 4px #3a5486}.panel p{font-weight:700;line-height:1.5;color:#e5efff}.main{border:0;border-radius:15px;background:linear-gradient(135deg,#ffe276,#ff9e50);padding:13px 25px;color:#402b43;font-weight:1000;font-size:17px;box-shadow:0 5px #b76c43;pointer-events:auto}.small{font-size:12px;color:#d4e2ff}.toast{position:absolute;top:23%;left:50%;transform:translateX(-50%);font-size:22px;font-weight:1000;color:#ffe16d;opacity:0;transition:opacity .12s}
+#pause{position:absolute;right:13px;top:110px;pointer-events:auto;border:1px solid #ffffff66;background:#172846d9;color:white;border-radius:12px;padding:8px 12px;font-weight:900}
+@media(min-width:700px){.ctrl{width:70px;height:70px}}
+</style></head><body>
+<canvas id="c"></canvas><div id="hud">
+<div class="top"><div class="pill">🏁 CHAOS BUDDIES <span style="color:#4de2d0">v0.2</span><div id="score">0 m</div></div><div id="stats"><div class="pill">🪙 <span id="coins">0</span></div><div class="pill">🏆 <span id="best">0</span></div></div></div>
+<div id="progress"><div id="fill"></div></div><button id="pause">Ⅱ</button><div class="toast" id="toast">NICE!</div>
+<div id="controls"><div class="pad"><button class="ctrl" id="left">◀</button><button class="ctrl" id="right">▶</button></div><div class="pad"><button class="ctrl act" id="slide">↓</button><button class="ctrl act" id="jump">↑</button></div></div></div>
+<div id="overlay"><div class="panel"><div style="font-size:54px">🩵</div><h1>CHAOS<br>BUDDIES</h1><p>VƯỢT CHƯỚNG NGẠI · NHẶT VÀNG · ĐỪNG RƠI!</p><p class="small">BUBU đã sẵn sàng cho cuộc đua hỗn loạn.</p><button class="main" id="start">CHƠI NGAY ▶</button></div></div>
+<script>
+(()=>{
+const c=document.querySelector('#c'),ctx=c.getContext('2d'),$=s=>document.querySelector(s);
+let W,H,D,mode='menu',time=0,dist=0,lane=0,target=0,jump=0,vy=0,duck=0,coins=0,combo=0,lastSpawn=0,objects=[],toast=0,shake=0,best=0,pausedFrom='play';
+try{best=+(localStorage.getItem('cb02best')||0)}catch(e){}$('#best').textContent=best;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*D;c.height=H*D;ctx.setTransform(D,0,0,D,0,0)}addEventListener('resize',resize);resize();
+function pop(s){$('#toast').textContent=s;$('#toast').style.opacity=1;toast=.8}
+function begin(){mode='play';time=dist=lane=target=jump=vy=duck=coins=combo=lastSpawn=0;objects=[];$('#overlay').style.display='none';$('#pause').textContent='Ⅱ';$('#coins').textContent='0';$('#score').textContent='0 m'}
+$('#start').onclick=begin;
+function move(d){if(mode==='play')target=Math.max(-1,Math.min(1,target+d))}
+function hop(){if(mode==='play'&&jump===0){vy=14;pop('BOING!')}}
+function slide(){if(mode==='play')duck=.62}
+[['left',()=>move(-1)],['right',()=>move(1)],['jump',hop],['slide',slide]].forEach(([id,fn])=>$('#'+id).addEventListener('pointerdown',e=>{e.preventDefault();fn()}));
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1);if(e.key==='ArrowUp'||e.key===' ')hop();if(e.key==='ArrowDown')slide();if(e.key==='Escape')togglePause()});
+function togglePause(){if(mode==='play'){mode='pause';$('#pause').textContent='▶';$('#overlay').style.display='flex';$('#overlay').innerHTML='<div class="panel"><div style="font-size:45px">⏸️</div><h1>TẠM DỪNG</h1><p>BUBU nghỉ lấy sức một chút nhé!</p><button class="main" id="resume">TIẾP TỤC ▶</button></div>';$('#resume').onclick=()=>{$('#overlay').style.display='none';mode='play';$('#pause').textContent='Ⅱ'}}else if(mode==='pause'){mode='play';$('#overlay').style.display='none';$('#pause').textContent='Ⅱ'}}
+$('#pause').onclick=togglePause;
+function finish(){mode='over';shake=10;best=Math.max(best,Math.floor(dist*2));try{localStorage.setItem('cb02best',best)}catch(e){}$('#best').textContent=best;$('#overlay').style.display='flex';$('#overlay').innerHTML=`<div class="panel"><div style="font-size:48px">😵‍💫</div><h1>ỐI! BUBU NGÃ RỒI</h1><p>Quãng đường: <b>${Math.floor(dist*2)} m</b><br>Vàng thu thập: <b>🪙 ${coins}</b><br>Combo tốt nhất: <b>${combo}</b></p><button class="main" id="retry">CHƠI LẠI ↻</button><p class="small">Kỷ lục cá nhân: ${best} m</p></div>` ;$('#retry').onclick=begin}
+function spawn(){let l=Math.floor(Math.random()*3)-1;let type=Math.random()<.23?'coin':(['block','bar','gap','hammer'][Math.floor(Math.random()*4)]);objects.push({l,z:1,type,done:false,phase:Math.random()*6})}
+function project(z,l){let dep=1-z;return{x:W/2+l*(W*.17*(.25+dep*1.25)),y:H*.28+dep*H*.68,s:.25+dep*1.25}}
+function rr(x,y,w,h,r,col){ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill(col)}
+function draw(){
+ ctx.clearRect(0,0,W,H);let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#70d4ee');sky.addColorStop(.53,'#d4f5df');sky.addColorStop(.54,'#7886b4');sky.addColorStop(1,'#35466e');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<5;i++){let xx=((i*211-time*8)%(W+120)+W+120)%(W+120)-60;ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.arc(xx,70+i%2*32,20,0,7);ctx.arc(xx+24,65+i%2*32,26,0,7);ctx.fill()}
+ ctx.fillStyle='#7181b3';ctx.beginPath();ctx.moveTo(W*.39,H*.28);ctx.lineTo(W*.61,H*.28);ctx.lineTo(W*1.08,H);ctx.lineTo(-W*.08,H);ctx.fill();ctx.fillStyle='#929fca';ctx.beginPath();ctx.moveTo(W*.405,H*.28);ctx.lineTo(W*.595,H*.28);ctx.lineTo(W*.98,H);ctx.lineTo(W*.02,H);ctx.fill();
+ for(let i=0;i<12;i++){let z=((i/12+dist*.018)%1),p=project(z,0);ctx.fillStyle='#ffffff88';ctx.fillRect(W/2-1,p.y,2+p.s*2,5+p.s*7)}
+ objects.slice().sort((a,b)=>a.z-b.z).forEach(o=>{let p=project(o.z,o.l),s=p.s,w=34*s,h=34*s;
+ if(o.type==='coin'){ctx.save();ctx.translate(p.x,p.y-18*s);ctx.scale(.65+Math.abs(Math.sin(time*7+o.phase))*.35,1);ctx.fillStyle='#ffce42';ctx.beginPath();ctx.arc(0,0,11*s,0,7);ctx.fill();ctx.strokeStyle='#fff0a1';ctx.lineWidth=3*s;ctx.stroke();ctx.restore()}
+ if(o.type==='block'){rr(p.x-w/2,p.y-h,w,h,7*s,'#ed687c');rr(p.x-w/2+4*s,p.y-h+4*s,w-8*s,6*s,3*s,'#ffb4a7')}
+ if(o.type==='bar'){rr(p.x-w/2,p.y-h*1.2,w,h*.3,5*s,'#855be0');}
+ if(o.type==='gap'){ctx.fillStyle='#293550';ctx.beginPath();ctx.ellipse(p.x,p.y,w*.7,h*.24,0,0,7);ctx.fill();ctx.strokeStyle='#ffcf61';ctx.lineWidth=2*s;ctx.stroke()}
+ if(o.type==='hammer'){let a=Math.sin(time*5+o.phase)*.8;ctx.save();ctx.translate(p.x,p.y-h*.7);ctx.rotate(a);rr(-3*s,-h*.8,6*s,h*.8,3*s,'#7851cb');rr(-w*.65,-h*.85,w*1.3,h*.42,7*s,'#ffbd4d');ctx.restore()}
+ });
+ let px=W/2+lane*W*.17,base=H*.80-jump*4.3;ctx.fillStyle='#26334f55';ctx.beginPath();ctx.ellipse(px,H*.82,22,7,0,0,7);ctx.fill();ctx.save();ctx.translate(px,base+Math.sin(time*12)*2);if(duck>0)ctx.scale(1.25,.62);
+ rr(-13,-9,10,17,5,'#ff9948');rr(4,-9,10,17,5,'#ff9948');ctx.fillStyle='#31d8c2';ctx.beginPath();ctx.ellipse(0,-30,23,25,0,0,7);ctx.fill();ctx.fillStyle='#aaffef';ctx.beginPath();ctx.ellipse(0,-23,13,15,0,0,7);ctx.fill();ctx.fillStyle='white';ctx.beginPath();ctx.ellipse(-8,-37,6,8,0,0,7);ctx.ellipse(8,-37,6,8,0,0,7);ctx.fill();ctx.fillStyle='#25334b';ctx.beginPath();ctx.arc(-7,-36,2.5,0,7);ctx.arc(9,-36,2.5,0,7);ctx.fill();ctx.strokeStyle='#25334b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,-25,6,.15,3);ctx.stroke();ctx.restore();
+}
+function update(dt){if(mode!=='play')return;time+=dt;dist+=dt*5;let score=Math.floor(dist*2);lane+=(target-lane)*Math.min(1,dt*12);if(jump>0||vy>0){jump+=vy;vy-=.68;if(jump<0){jump=0;vy=0}}duck=Math.max(0,duck-dt);
+ if(dist-lastSpawn>15){spawn();lastSpawn=dist}
+ objects.forEach(o=>{o.z-=dt*.42;if(o.done||o.z>.085||o.z<-.03)return;if(Math.abs(lane-o.l)>.48)return;
+ if(o.type==='coin'){o.done=true;coins++;$('#coins').textContent=coins;pop('🪙 +1 VÀNG!');return}
+ let safe=o.type==='block'?jump>13:o.type==='bar'?duck>.12:o.type==='gap'?jump>15:jump>18||duck>.2;
+ if(safe){o.done=true;combo++;pop(combo>1?'🔥 COMBO x'+combo:'NÉ ĐẸP!');}else finish()
+ });objects=objects.filter(o=>o.z>-.12&&!o.done);$('#score').textContent=score+' m';$('#fill').style.width=(score%500)/5+'%';if(toast>0){toast-=dt;if(toast<=0)$('#toast').style.opacity=0}
+}
+let prev=0;function frame(now){let dt=Math.min((now-prev)/1000||0,.035);prev=now;update(dt);draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
+})();
+</script></body></html>
