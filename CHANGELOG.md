@@ -1,6 +1,9 @@
 # Changelog
 
 ## v0.7 — Party Rumble
+- Replaced the four-button directional pad with a large analog virtual joystick for smoother one-thumb movement on phones.
+- Added nearest-opponent auto-aim to the dash attack when an opponent is close.
+- Enlarged the action-button touch targets and kept dash/shield on the right side.
 - Replaced the endless-runner loop with a circular 3D party arena.
 - Rebuilt the playable buddy with eyes and facial features placed on the front-facing (+Z) side toward the gameplay camera.
 - Added seven AI opponents with movement and knockback reactions.
