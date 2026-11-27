@@ -1,27 +1,25 @@
 # Changelog
 
+## v0.6 — Party Dash
+- Replaced the uncanny jelly/antenna mascot with POMI, a soft rounded plush-like buddy with floppy ears, a small face, blush cheeks, scarf and tiny shoes.
+- Added collectible stars and a mission target of 8 stars.
+- Added combo chain for consecutive pickups and clean obstacle dodges.
+- Added shield and magnet power-ups with timed effects.
+- Added more frequent obstacle patterns: crates, overhead bars, gates and rotating spinners.
+- Increased run speed gradually to create escalating challenge.
+- Kept all previous versions unchanged.
+
 ## v0.5
-- Rebuilt BUBU with a larger glossy jelly body and a sculpted forehead crest.
-- Added large layered eyes, irises, pupils, highlights, brows, cheeks and a smile.
-- Added glowing antenna tips, orange utility belt, star badge and high-top sneakers.
-- Gave BUBU, PIPI and ZUZU distinct color palettes.
-- Improved running animation with alternating legs and arm movement.
-- Preserved all earlier versions unchanged.
+- Experimental glossy jelly mascot redesign with antennae, oversized eyes and color variants.
 
 ## v0.4
-- Added running bounce and alternating foot movement for BUBU.
-- Added a fall pose when the player hits an obstacle.
-- Added three selectable character color styles: BUBU, PIPI and ZUZU.
-- Added an extra gate obstacle type.
+- Added basic running animation, fall pose and character color selection.
 
 ## v0.3
-- Added first WebGL 3D playground built with Three.js.
-- Added a modeled 3D BUBU mascot, perspective track, scenery, lighting and shadows.
-- Added 3D block, overhead bar, gap and rotating hammer obstacles.
-- Added lane movement, jump, slide, coins, score, personal best and pause/retry UI.
+- Added first WebGL 3D scene, modeled mascot, perspective track and 3D obstacles.
 
 ## v0.2
-- Added collectible gold coins, hammer obstacle, combo feedback, pause/resume and local personal best.
+- Added collectible coins, hammer obstacle, combo feedback, pause/resume and local personal best.
 
 ## v0.1
-- First browser prototype with lane movement, jump, slide, obstacles and distance score.
+- First browser prototype with lane movement, jump, slide and distance score.
